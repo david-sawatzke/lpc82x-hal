@@ -729,10 +729,7 @@ pub mod pin_state {
     use core::marker::PhantomData;
 
     use crate::gpio::direction::Direction;
-    #[cfg(feature = "845")]
     use crate::raw_compat::gpio::{CLR, DIRSET, PIN, SET};
-    #[cfg(feature = "82x")]
-    use crate::raw_compat::gpio::{CLR0 as CLR, DIRSET0 as DIRSET, PIN0 as PIN, SET0 as SET};
 
     /// Implemented by types that indicate pin state
     ///

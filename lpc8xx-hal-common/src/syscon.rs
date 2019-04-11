@@ -11,17 +11,11 @@
 
 use core::marker::PhantomData;
 
-#[cfg(feature = "82x")]
-use crate::raw::syscon::{
+use crate::raw_compat::syscon::{
     pdruncfg, presetctrl, starterp1, sysahbclkctrl, PDRUNCFG, PRESETCTRL, STARTERP1, SYSAHBCLKCTRL,
-    UARTCLKDIV, UARTFRGDIV, UARTFRGMULT,
 };
-
-#[cfg(feature = "845")]
-use crate::raw::syscon::{
-    pdruncfg, presetctrl0 as presetctrl, starterp1, sysahbclkctrl0 as sysahbclkctrl, PDRUNCFG,
-    PRESETCTRL0 as PRESETCTRL, STARTERP1, SYSAHBCLKCTRL0 as SYSAHBCLKCTRL,
-};
+#[cfg(feature = "82x")]
+use crate::raw_compat::syscon::{UARTCLKDIV, UARTFRGDIV, UARTFRGMULT};
 
 use crate::reg;
 // TODO Remove when FRO is implemented for lpc845

@@ -42,10 +42,27 @@ pub mod init_state {
 // Provide common peripheral names
 // When in doubt, use the names from the new svd files
 mod raw_compat {
-    #[cfg(feature = "845")]
-    pub(crate) use crate::raw::gpio;
-    #[cfg(feature = "82x")]
-    pub(crate) use crate::raw::gpio_port as gpio;
+    pub(crate) mod syscon {
+        #[cfg(feature = "82x")]
+        pub(crate) use crate::raw::syscon::{
+            pdruncfg, presetctrl, starterp1, sysahbclkctrl, PDRUNCFG, PRESETCTRL, STARTERP1,
+            SYSAHBCLKCTRL, UARTCLKDIV, UARTFRGDIV, UARTFRGMULT,
+        };
+        #[cfg(feature = "845")]
+        pub(crate) use crate::raw::syscon::{
+            pdruncfg, presetctrl0 as presetctrl, starterp1, sysahbclkctrl0 as sysahbclkctrl,
+            PDRUNCFG, PRESETCTRL0 as PRESETCTRL, STARTERP1, SYSAHBCLKCTRL0 as SYSAHBCLKCTRL,
+        };
+    }
+    pub(crate) mod gpio {
+        #[cfg(feature = "845")]
+        pub(crate) use crate::raw::gpio::{CLR, DIRSET, PIN, SET};
+        #[cfg(feature = "82x")]
+        pub(crate) use crate::raw::gpio_port::{
+            CLR0 as CLR, DIRSET0 as DIRSET, PIN0 as PIN, SET0 as SET,
+        };
+
+    }
     #[cfg(feature = "845")]
     pub(crate) use crate::raw::ACOMP;
     #[cfg(feature = "82x")]

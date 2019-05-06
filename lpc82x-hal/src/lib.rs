@@ -101,8 +101,10 @@ extern crate embedded_hal;
 extern crate void;
 
 pub extern crate lpc82x_pac as raw;
+#[macro_use]
 extern crate lpc8xx_hal_common;
-pub use lpc8xx_hal_common::*;
+pub(crate) use lpc8xx_hal_common as common;
+pub use common::*;
 
 
 #[macro_use] pub(crate) mod reg_proxy;
@@ -113,6 +115,7 @@ pub mod pmu;
 pub mod sleep;
 pub mod usart;
 pub mod wkt;
+pub mod syscon;
 
 
 pub use self::dma::DMA;

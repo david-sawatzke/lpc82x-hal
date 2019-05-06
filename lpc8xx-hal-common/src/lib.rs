@@ -46,7 +46,7 @@ mod raw_compat {
         #[cfg(feature = "82x")]
         pub(crate) use crate::raw::syscon::{
             pdruncfg, presetctrl, starterp1, sysahbclkctrl, PDRUNCFG, PRESETCTRL, STARTERP1,
-            SYSAHBCLKCTRL, UARTCLKDIV, UARTFRGDIV, UARTFRGMULT,
+            SYSAHBCLKCTRL,
         };
         #[cfg(feature = "845")]
         pub(crate) use crate::raw::syscon::{

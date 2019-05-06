@@ -1,113 +1,15 @@
-//! API for system configuration (SYSCON)
-//!
-//! The entry point to this API is [`SYSCON`]. Please refer to [`SYSCON`]'s
-//! documentation for additional information.
-//!
-//! This module mostly provides infrastructure required by other parts of the
-//! HAL API. For this reason, only a small subset of SYSCON functionality is
-//! currently implemented.
-//!
-//! The SYSCON peripheral is described in the user manual, chapter 5.
-
 use core::marker::PhantomData;
 
 use crate::raw_compat::syscon::{
     pdruncfg, presetctrl, starterp1, sysahbclkctrl, PDRUNCFG, PRESETCTRL, STARTERP1, SYSAHBCLKCTRL,
 };
-#[cfg(feature = "82x")]
-use crate::raw_compat::syscon::{UARTCLKDIV, UARTFRGDIV, UARTFRGMULT};
 
 use crate::reg;
 // TODO Remove when FRO is implemented for lpc845
 #[allow(unused_imports)]
 use crate::{clock, init_state, raw, raw_compat, reg_proxy::RegProxy};
 
-/// Entry point to the SYSCON API
-///
-/// The SYSCON API is split into multiple parts, which are all available through
-/// [`syscon::Parts`]. You can use [`SYSCON::split`] to gain access to
-/// [`syscon::Parts`].
-///
-/// You can also use this struct to gain access to the raw peripheral using
-/// [`SYSCON::free`]. This is the main reason this struct exists, as it's no
-/// longer possible to do this after the API has been split.
-///
-/// Use [`Peripherals`] to gain access to an instance of this struct.
-///
-/// Please refer to the [module documentation] for more information.
-///
-/// [`syscon::Parts`]: struct.Parts.html
-/// [`Peripherals`]: ../struct.Peripherals.html
-/// [module documentation]: index.html
-pub struct SYSCON {
-    syscon: raw::SYSCON,
-}
-
-impl SYSCON {
-    pub fn new(syscon: raw::SYSCON) -> Self {
-        SYSCON { syscon }
-    }
-
-    /// Splits the SYSCON API into its component parts
-    ///
-    /// This is the regular way to access the SYSCON API. It exists as an
-    /// explicit step, as it's no longer possible to gain access to the raw
-    /// peripheral using [`SYSCON::free`] after you've called this method.
-    pub fn split(self) -> Parts {
-        Parts {
-            handle: Handle {
-                pdruncfg: RegProxy::new(),
-                presetctrl: RegProxy::new(),
-                starterp1: RegProxy::new(),
-                sysahbclkctrl: RegProxy::new(),
-            },
-
-            bod: BOD(PhantomData),
-            flash: FLASH(PhantomData),
-            irc: IRC(PhantomData),
-            ircout: IRCOUT(PhantomData),
-            mtb: MTB(PhantomData),
-            ram0_1: RAM0_1(PhantomData),
-            rom: ROM(PhantomData),
-            sysosc: SYSOSC(PhantomData),
-            syspll: SYSPLL(PhantomData),
-
-            #[cfg(feature = "82x")]
-            uartfrg: UARTFRG {
-                uartclkdiv: RegProxy::new(),
-                uartfrgdiv: RegProxy::new(),
-                uartfrgmult: RegProxy::new(),
-            },
-
-            #[cfg(feature = "82x")]
-            irc_derived_clock: IrcDerivedClock::new(),
-        }
-    }
-
-    /// Return the raw peripheral
-    ///
-    /// This method serves as an escape hatch from the HAL API. It returns the
-    /// raw peripheral, allowing you to do whatever you want with it, without
-    /// limitations imposed by the API.
-    ///
-    /// If you are using this method because a feature you need is missing from
-    /// the HAL API, please [open an issue] or, if an issue for your feature
-    /// request already exists, comment on the existing issue, so we can
-    /// prioritize it accordingly.
-    ///
-    /// [open an issue]: https://github.com/lpc-rs/lpc8xx-hal/issues
-    pub fn free(self) -> raw::SYSCON {
-        self.syscon
-    }
-}
-
-/// The main API for the SYSCON peripheral
-///
-/// Provides access to all types that make up the SYSCON API. Please refer to
-/// the [module documentation] for more information.
-///
-/// [module documentation]: index.html
-pub struct Parts {
+pub struct CommonParts {
     /// The handle to the SYSCON peripheral
     pub handle: Handle,
 
@@ -116,12 +18,6 @@ pub struct Parts {
 
     /// Flash memory
     pub flash: FLASH,
-
-    /// IRC
-    pub irc: IRC,
-
-    /// IRC output
-    pub ircout: IRCOUT,
 
     /// Micro Trace Buffer
     pub mtb: MTB,
@@ -137,14 +33,27 @@ pub struct Parts {
 
     /// PLL
     pub syspll: SYSPLL,
+}
 
-    #[cfg(feature = "82x")]
-    /// UART Fractional Baud Rate Generator
-    pub uartfrg: UARTFRG,
+impl CommonParts {
+    pub unsafe fn new() -> CommonParts {
+        CommonParts {
+            handle: Handle {
+                pdruncfg: RegProxy::new(),
+                presetctrl: RegProxy::new(),
+                starterp1: RegProxy::new(),
+                sysahbclkctrl: RegProxy::new(),
+            },
 
-    #[cfg(feature = "82x")]
-    /// The 750 kHz IRC-derived clock
-    pub irc_derived_clock: IrcDerivedClock<init_state::Enabled>,
+            bod: BOD(PhantomData),
+            flash: FLASH(PhantomData),
+            mtb: MTB(PhantomData),
+            ram0_1: RAM0_1(PhantomData),
+            rom: ROM(PhantomData),
+            sysosc: SYSOSC(PhantomData),
+            syspll: SYSPLL(PhantomData),
+        }
+    }
 }
 
 /// Handle to the SYSCON peripheral
@@ -246,21 +155,6 @@ pub struct BOD(PhantomData<*const ()>);
 /// [`syscon::Handle`]: struct.Handle.html
 pub struct FLASH(PhantomData<*const ()>);
 
-/// IRC
-///
-/// Can be used to control the IRC using various methods on [`syscon::Handle`].
-///
-/// [`syscon::Handle`]: struct.Handle.html
-pub struct IRC(PhantomData<*const ()>);
-
-/// IRC output
-///
-/// Can be used to control IRC output using various methods on
-/// [`syscon::Handle`].
-///
-/// [`syscon::Handle`]: struct.Handle.html
-pub struct IRCOUT(PhantomData<*const ()>);
-
 /// Micro Trace Buffer
 ///
 /// Can be used to control the Micro Trace Buffer using various methods on
@@ -298,45 +192,6 @@ pub struct SYSOSC(PhantomData<*const ()>);
 ///
 /// [`syscon::Handle`]: struct.Handle.html
 pub struct SYSPLL(PhantomData<*const ()>);
-
-#[cfg(feature = "82x")]
-/// UART Fractional Baud Rate Generator
-///
-/// Controls the common clock for all UART peripherals (U_PCLK).
-///
-/// Can also be used to control the UART FRG using various methods on
-/// [`syscon::Handle`].
-///
-/// [`syscon::Handle`]: struct.Handle.html
-pub struct UARTFRG {
-    uartclkdiv: RegProxy<UARTCLKDIV>,
-    uartfrgdiv: RegProxy<UARTFRGDIV>,
-    uartfrgmult: RegProxy<UARTFRGMULT>,
-}
-
-#[cfg(feature = "82x")]
-impl UARTFRG {
-    /// Set UART clock divider value (UARTCLKDIV)
-    ///
-    /// See user manual, section 5.6.15.
-    pub fn set_clkdiv(&mut self, value: u8) {
-        self.uartclkdiv.write(|w| unsafe { w.div().bits(value) });
-    }
-
-    /// Set UART fractional generator multiplier value (UARTFRGMULT)
-    ///
-    /// See user manual, section 5.6.20.
-    pub fn set_frgmult(&mut self, value: u8) {
-        self.uartfrgmult.write(|w| unsafe { w.mult().bits(value) });
-    }
-
-    /// Set UART fractional generator divider value (UARTFRGDIV)
-    ///
-    /// See user manual, section 5.6.19.
-    pub fn set_frgdiv(&mut self, value: u8) {
-        self.uartfrgdiv.write(|w| unsafe { w.div().bits(value) });
-    }
-}
 
 /// Internal trait for controlling peripheral clocks
 ///
@@ -400,6 +255,7 @@ impl_clock_control!(raw::I2C3, i2c3);
 impl_clock_control!(raw_compat::ADC0, adc);
 impl_clock_control!(MTB, mtb);
 impl_clock_control!(raw_compat::DMA0, dma);
+
 #[cfg(feature = "845")]
 impl ClockControl for raw_compat::GPIO {
     fn enable_clock<'w>(&self, w: &'w mut sysahbclkctrl::W) -> &'w mut sysahbclkctrl::W {
@@ -430,6 +286,7 @@ pub trait ResetControl {
     fn clear_reset<'w>(&self, w: &'w mut presetctrl::W) -> &'w mut presetctrl::W;
 }
 
+#[macro_export]
 macro_rules! impl_reset_control {
     ($reset_control:ty, $field:ident) => {
         impl<'a> ResetControl for $reset_control {
@@ -446,8 +303,6 @@ macro_rules! impl_reset_control {
 
 impl_reset_control!(raw::SPI0, spi0_rst_n);
 impl_reset_control!(raw::SPI1, spi1_rst_n);
-#[cfg(feature = "82x")]
-impl_reset_control!(UARTFRG, uartfrg_rst_n);
 impl_reset_control!(raw::USART0, uart0_rst_n);
 impl_reset_control!(raw::USART1, uart1_rst_n);
 impl_reset_control!(raw::USART2, uart2_rst_n);
@@ -455,8 +310,6 @@ impl_reset_control!(raw::I2C0, i2c0_rst_n);
 impl_reset_control!(raw_compat::MRT0, mrt_rst_n);
 impl_reset_control!(raw_compat::SCT0, sct_rst_n);
 impl_reset_control!(raw::WKT, wkt_rst_n);
-#[cfg(feature = "82x")]
-impl_reset_control!(raw_compat::GPIO, gpio_rst_n);
 impl_reset_control!(raw_compat::FLASH_CTRL, flash_rst_n);
 impl_reset_control!(raw_compat::ACOMP, acmp_rst_n);
 impl_reset_control!(raw::I2C1, i2c1_rst_n);
@@ -464,6 +317,8 @@ impl_reset_control!(raw::I2C2, i2c2_rst_n);
 impl_reset_control!(raw::I2C3, i2c3_rst_n);
 impl_reset_control!(raw_compat::ADC0, adc_rst_n);
 impl_reset_control!(raw_compat::DMA0, dma_rst_n);
+#[cfg(feature = "82x")]
+impl_reset_control!(raw_compat::GPIO, gpio_rst_n);
 
 #[cfg(feature = "845")]
 impl<'a> ResetControl for raw_compat::GPIO {
@@ -495,6 +350,7 @@ pub trait AnalogBlock {
     fn power_down<'w>(&self, w: &'w mut pdruncfg::W) -> &'w mut pdruncfg::W;
 }
 
+#[macro_export]
 macro_rules! impl_analog_block {
     ($analog_block:ty, $field:ident) => {
         impl<'a> AnalogBlock for $analog_block {
@@ -509,10 +365,6 @@ macro_rules! impl_analog_block {
     };
 }
 
-#[cfg(feature = "82x")]
-impl_analog_block!(IRCOUT, ircout_pd);
-#[cfg(feature = "82x")]
-impl_analog_block!(IRC, irc_pd);
 impl_analog_block!(FLASH, flash_pd);
 impl_analog_block!(BOD, bod_pd);
 impl_analog_block!(raw_compat::ADC0, adc_pd);
@@ -520,68 +372,6 @@ impl_analog_block!(SYSOSC, sysosc_pd);
 impl_analog_block!(raw::WWDT, wdtosc_pd);
 impl_analog_block!(SYSPLL, syspll_pd);
 impl_analog_block!(raw_compat::ACOMP, acmp);
-
-#[cfg(feature = "82x")]
-/// The 750 kHz IRC-derived clock
-///
-/// This is one of the clocks that can be used to run the self-wake-up timer
-/// (WKT). See user manual, section 18.5.1.
-pub struct IrcDerivedClock<State = init_state::Enabled> {
-    _state: State,
-}
-
-#[cfg(feature = "82x")]
-impl IrcDerivedClock<init_state::Enabled> {
-    pub(crate) fn new() -> Self {
-        IrcDerivedClock {
-            _state: init_state::Enabled(()),
-        }
-    }
-}
-
-#[cfg(feature = "82x")]
-impl IrcDerivedClock<init_state::Disabled> {
-    /// Enable the IRC-derived clock
-    ///
-    /// This method is only available, if `IrcDerivedClock` is in the
-    /// [`Disabled`] state. Code that attempts to call this method when the
-    /// clock is already enabled will not compile.
-    ///
-    /// Consumes this instance of `IrcDerivedClock` and returns another instance
-    /// that has its `State` type parameter set to [`Enabled`]. That new
-    /// instance implements [`clock::Enabled`], which might be required by APIs
-    /// that need an enabled clock.
-    ///
-    /// Also consumes the handles to [`IRC`] and [`IRCOUT`], to make it
-    /// impossible (outside of unsafe code) to break API guarantees.
-    ///
-    /// [`Disabled`]: ../init_state/struct.Disabled.html
-    /// [`Enabled`]: ../init_state/struct.Enabled.html
-    /// [`clock::Enabled`]: ../clock/trait.Enabled.html
-    pub fn enable(
-        self,
-        syscon: &mut Handle,
-        mut irc: IRC,
-        mut ircout: IRCOUT,
-    ) -> IrcDerivedClock<init_state::Enabled> {
-        syscon.power_up(&mut irc);
-        syscon.power_up(&mut ircout);
-
-        IrcDerivedClock {
-            _state: init_state::Enabled(()),
-        }
-    }
-}
-
-#[cfg(feature = "82x")]
-impl<State> clock::Frequency for IrcDerivedClock<State> {
-    fn hz(&self) -> u32 {
-        750_000
-    }
-}
-
-#[cfg(feature = "82x")]
-impl clock::Enabled for IrcDerivedClock<init_state::Enabled> {}
 
 /// Internal trait used to configure interrupt wake-up
 ///
@@ -645,14 +435,7 @@ reg!(PRESETCTRL, PRESETCTRL, raw::SYSCON, presetctrl);
 #[cfg(feature = "845")]
 reg!(PRESETCTRL, PRESETCTRL, raw::SYSCON, presetctrl0);
 reg!(STARTERP1, STARTERP1, raw::SYSCON, starterp1);
-#[cfg(feature = "82x")]
-reg!(SYSAHBCLKCTRL, SYSAHBCLKCTRL, raw::SYSCON, sysahbclkctrl);
 #[cfg(feature = "845")]
 reg!(SYSAHBCLKCTRL, SYSAHBCLKCTRL, raw::SYSCON, sysahbclkctrl0);
-
 #[cfg(feature = "82x")]
-reg!(UARTCLKDIV, UARTCLKDIV, raw::SYSCON, uartclkdiv);
-#[cfg(feature = "82x")]
-reg!(UARTFRGDIV, UARTFRGDIV, raw::SYSCON, uartfrgdiv);
-#[cfg(feature = "82x")]
-reg!(UARTFRGMULT, UARTFRGMULT, raw::SYSCON, uartfrgmult);
+reg!(SYSAHBCLKCTRL, SYSAHBCLKCTRL, raw::SYSCON, sysahbclkctrl);

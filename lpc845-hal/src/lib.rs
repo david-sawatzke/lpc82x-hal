@@ -7,7 +7,11 @@
 extern crate std;
 
 pub extern crate lpc845_pac as raw;
-pub use lpc8xx_hal_common::*;
+pub(crate) use lpc8xx_hal_common as common;
+
+pub use common::*;
+
+pub mod syscon;
 
 pub use self::gpio::GPIO;
 pub use self::swm::SWM;
@@ -389,8 +393,6 @@ impl Peripherals {
     fn new(p: raw::Peripherals, cp: raw::CorePeripherals) -> Self {
         Peripherals {
             // HAL peripherals
-            // NOTE(unsafe) The init state of the gpio peripheral is enabled,
-            // thus it's safe to create an already initialized gpio port
             GPIO: GPIO::new(p.GPIO),
             SWM: SWM::new(p.SWM0),
             SYSCON: SYSCON::new(p.SYSCON),
